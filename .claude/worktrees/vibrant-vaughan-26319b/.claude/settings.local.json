@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(findstr \"APP_KEY DB_PORT DB_DATABASE\")",
+      "Bash(dir vendor *)",
+      "Bash(findstr autoload *)",
+      "Bash(dir node_modules /b)",
+      "Bash(findstr tailwindcss *)",
+      "Bash(php artisan *)"
+    ]
+  }
+}
