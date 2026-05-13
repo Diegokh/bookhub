@@ -11,6 +11,63 @@
         <h1 class="text-2xl font-bold text-white mt-3">Añadir nuevo libro</h1>
     </div>
 
+    {{-- ============================ Buscador Open Library ============================ --}}
+    <div x-data="openLibrarySearch()" class="bg-gradient-to-br from-amber-500/10 to-amber-700/5 border border-amber-500/30 rounded-2xl p-5 mb-6">
+        <div class="flex items-center gap-2 mb-2">
+            <span class="text-amber-400 text-lg">🔍</span>
+            <h2 class="text-sm font-semibold text-amber-400">Autocompletar desde Open Library</h2>
+        </div>
+        <p class="text-gray-400 text-xs mb-3">Escribe el título o autor; selecciona un resultado y rellenará el formulario automáticamente.</p>
+
+        <div class="relative">
+            <input type="text"
+                   x-model="query"
+                   @input.debounce.400ms="search()"
+                   placeholder="Ej: Dune, Tolkien, 1984..."
+                   class="w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-500 placeholder-gray-600">
+
+            {{-- Spinner --}}
+            <div x-show="loading" x-cloak class="absolute right-3 top-1/2 -translate-y-1/2 text-amber-400 text-sm">
+                ⏳
+            </div>
+        </div>
+
+        {{-- Resultados --}}
+        <div x-show="results.length > 0" x-cloak class="mt-3 bg-gray-900 border border-gray-800 rounded-xl divide-y divide-gray-800 max-h-96 overflow-y-auto">
+            <template x-for="r in results" :key="r.key">
+                <button type="button"
+                        @click="pick(r)"
+                        :disabled="picking"
+                        class="w-full flex items-start gap-3 p-3 hover:bg-gray-800 transition-colors text-left disabled:opacity-50">
+                    <div class="w-12 h-16 shrink-0 bg-gray-800 rounded overflow-hidden flex items-center justify-center">
+                        <template x-if="r.cover_url">
+                            <img :src="r.cover_url" :alt="r.title" class="w-full h-full object-cover">
+                        </template>
+                        <template x-if="!r.cover_url">
+                            <span class="text-2xl text-gray-600">📖</span>
+                        </template>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-white text-sm font-medium truncate" x-text="r.title"></p>
+                        <p class="text-amber-400 text-xs truncate" x-text="r.author || 'Autor desconocido'"></p>
+                        <p class="text-gray-500 text-xs" x-text="r.year || ''"></p>
+                    </div>
+                </button>
+            </template>
+        </div>
+
+        {{-- Empty --}}
+        <p x-show="searched && results.length === 0 && !loading" x-cloak class="mt-3 text-gray-500 text-xs">
+            Sin resultados.
+        </p>
+
+        {{-- Error --}}
+        <p x-show="error" x-cloak class="mt-3 text-red-400 text-xs" x-text="error"></p>
+
+        {{-- Picking detail --}}
+        <p x-show="picking" x-cloak class="mt-3 text-amber-400 text-xs">Cargando detalle del libro…</p>
+    </div>
+
     <form action="/books" method="POST" class="bg-gray-900 border border-gray-800 rounded-2xl p-6 lg:p-8 space-y-5">
         @csrf
 
@@ -116,5 +173,83 @@
 
     </form>
 </div>
+
+<script>
+    function openLibrarySearch() {
+        return {
+            query: '',
+            results: [],
+            loading: false,
+            picking: false,
+            searched: false,
+            error: null,
+
+            async search() {
+                this.error = null;
+                if (this.query.trim().length < 2) {
+                    this.results = [];
+                    this.searched = false;
+                    return;
+                }
+                this.loading = true;
+                try {
+                    const url = '{{ route('admin.openlibrary.search') }}?q=' + encodeURIComponent(this.query);
+                    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                    if (!res.ok) throw new Error('Búsqueda falló (' + res.status + ')');
+                    const data = await res.json();
+                    this.results = data.results || [];
+                    this.searched = true;
+                } catch (e) {
+                    this.error = e.message;
+                    this.results = [];
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            async pick(r) {
+                this.picking = true;
+                this.error = null;
+                try {
+                    // Rellenar lo que ya tenemos del search
+                    this.setField('title', r.title || '');
+                    this.setField('author', r.author || '');
+                    this.setField('year', r.year || '');
+                    this.setField('cover_url', r.cover_url || '');
+
+                    // Pedir detalle para descripción
+                    const url = '{{ route('admin.openlibrary.work') }}?key=' + encodeURIComponent(r.key);
+                    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.description) {
+                            this.setField('description', data.description);
+                        }
+                        // Si el search no traía portada pero el work sí, úsala
+                        if (!r.cover_url && data.cover_url) {
+                            this.setField('cover_url', data.cover_url);
+                        }
+                    }
+
+                    // Cerrar resultados
+                    this.results = [];
+                    this.query = r.title || '';
+                } catch (e) {
+                    this.error = 'No se pudo cargar el detalle: ' + e.message;
+                } finally {
+                    this.picking = false;
+                }
+            },
+
+            setField(name, value) {
+                const el = document.getElementById(name);
+                if (el) {
+                    el.value = value;
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            },
+        };
+    }
+</script>
 
 @endsection

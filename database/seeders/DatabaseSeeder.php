@@ -7,6 +7,7 @@ use App\Models\Comment;
 use App\Models\Genre;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\OpenLibraryService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -61,8 +62,20 @@ class DatabaseSeeder extends Seeder
             'Don Quijote de la Mancha'  => ['Novela', 'Clásico'],
         ];
 
+        // Traemos portadas desde Open Library (fallback silencioso si falla)
+        $ol = new OpenLibraryService();
+
         $createdBooks = [];
         foreach ($books as $data) {
+            try {
+                $hits = $ol->search($data['title'] . ' ' . $data['author'], 1);
+                if (!empty($hits[0]['cover_url'])) {
+                    $data['cover_url'] = $hits[0]['cover_url'];
+                }
+            } catch (\Throwable $e) {
+                // sin internet o API caída → seguimos sin portada
+            }
+
             $book = Book::create($data);
             $genreIds = collect($bookGenreMap[$data['title']] ?? [])
                 ->map(fn($g) => $genreMap[$g]->id ?? null)

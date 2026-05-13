@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\OpenLibraryController;
 use App\Http\Controllers\BookController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\ProfileController;
@@ -21,6 +22,10 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/books/{id}/edit', [BookController::class, 'edit'])->name('books.edit');
     Route::put('/books/{id}', [BookController::class, 'update'])->name('books.update');
     Route::delete('/books/{id}', [BookController::class, 'destroy'])->name('books.destroy');
+
+    // Open Library proxy (sólo admin) — autocompletado del formulario
+    Route::get('/admin/openlibrary/search', [OpenLibraryController::class, 'search'])->name('admin.openlibrary.search');
+    Route::get('/admin/openlibrary/work',   [OpenLibraryController::class, 'work'])->name('admin.openlibrary.work');
 });
 
 // Acciones de usuario sobre libros (auth)
