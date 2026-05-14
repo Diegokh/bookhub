@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'BookHub') — BookHub</title>
+    <link rel="icon" type="image/png" href="{{ asset('images/bookhub-logo.png') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
@@ -15,9 +16,10 @@
             <div class="flex items-center justify-between h-16">
 
                 {{-- Brand --}}
-                <a href="/" class="flex items-center gap-2 group">
-                    <span class="text-2xl">📚</span>
-                    <span class="text-xl font-bold text-amber-400 group-hover:text-amber-300 transition-colors">BookHub</span>
+                <a href="/" class="flex items-center group -my-8 relative z-10" aria-label="BookHub - inicio">
+                    <img src="{{ asset('images/bookhub-logo.png') }}"
+                         alt="BookHub"
+                         class="h-32 w-auto group-hover:opacity-90 transition-opacity">
                 </a>
 
                 {{-- Nav links --}}

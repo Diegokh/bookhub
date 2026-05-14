@@ -8,13 +8,40 @@ use Illuminate\Http\Request;
 
 class BookController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $books = Book::with('genres')
-            ->orderBy('rating', 'desc')
-            ->paginate(12);
+        $query = Book::with('genres')->orderBy('rating', 'desc');
 
-        return view('books.index', compact('books'));
+        if ($request->filled('genre')) {
+            $genreId = (int) $request->input('genre');
+            $query->whereHas('genres', fn($q) => $q->where('genres.id', $genreId));
+        }
+
+        if ($request->filled('author')) {
+            $query->where('author', $request->input('author'));
+        }
+
+        $books = $query->paginate(12)->withQueryString();
+
+        $genres  = Genre::orderBy('name')->get();
+        $authors = Book::whereNotNull('author')
+            ->where('author', '!=', '')
+            ->distinct()
+            ->orderBy('author')
+            ->pluck('author');
+
+        // Populares: combinación de lecturas + reseñas. Solo se muestra sin filtros activos.
+        $popularBooks = collect();
+        if (! $request->hasAny(['genre', 'author'])) {
+            $popularBooks = Book::with('genres')
+                ->withCount(['readers', 'reviews'])
+                ->orderByRaw('(readers_count * 2 + reviews_count) DESC')
+                ->orderBy('rating', 'desc')
+                ->limit(6)
+                ->get();
+        }
+
+        return view('books.index', compact('books', 'genres', 'authors', 'popularBooks'));
     }
 
     public function show(Request $request, $id)

@@ -46,53 +46,36 @@
         <p class="text-gray-300 text-sm leading-relaxed mb-4 whitespace-pre-line">{{ $review->body }}</p>
     @endif
 
-    {{-- ===================== Comentarios ===================== --}}
+    {{-- ===================== Comentarios (hilo Reddit-style) ===================== --}}
     @php
-        $isReviewOwner = auth()->check() && auth()->id() === $review->user_id;
+        // Agrupamos por parent_id; los root tienen parent_id NULL → usamos 0 como clave
+        $commentsByParent = $review->comments->groupBy(fn($c) => $c->parent_id ?? 0);
+        $rootComments    = $commentsByParent->get(0) ?? collect();
+        $totalComments   = $review->comments->count();
     @endphp
 
-    <div x-data="{ open: {{ $review->comments->isNotEmpty() ? 'true' : 'false' }} }" class="mt-3 border-t border-gray-800 pt-3">
+    <div x-data="{ open: {{ $totalComments > 0 ? 'true' : 'false' }} }" class="mt-3 border-t border-gray-800 pt-3">
         <button type="button" @click="open = !open"
                 class="text-gray-400 hover:text-amber-400 text-xs font-medium transition-colors flex items-center gap-1">
             <span x-text="open ? '▼' : '▶'"></span>
-            Comentarios ({{ $review->comments->count() }})
+            Comentarios ({{ $totalComments }})
         </button>
 
-        <div x-show="open" x-cloak class="mt-4 space-y-3">
+        <div x-show="open" x-cloak class="mt-4 space-y-4">
 
-            {{-- Lista de comentarios --}}
-            @foreach($review->comments as $comment)
-                @php
-                    $canDeleteComment = auth()->check() && auth()->user()->can('delete', $comment);
-                    $isMyComment      = auth()->check() && auth()->id() === $comment->user_id;
-                @endphp
-                <div class="bg-gray-800/50 border border-gray-800 rounded-xl p-3">
-                    <div class="flex items-start justify-between gap-3 mb-1">
-                        <div class="flex items-center gap-2">
-                            <span class="text-sm text-white font-medium">
-                                {{ $comment->user->name ?? 'Usuario eliminado' }}
-                            </span>
-                            @if($isMyComment)
-                                <span class="text-xs text-amber-400">(tú)</span>
-                            @endif
-                            <span class="text-gray-600 text-xs">· {{ $comment->created_at->diffForHumans() }}</span>
-                        </div>
-                        @if($canDeleteComment)
-                            <form action="{{ route('comments.destroy', $comment) }}" method="POST"
-                                  onsubmit="return confirm('¿Borrar este comentario?')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-red-400 hover:text-red-300 text-xs">Borrar</button>
-                            </form>
-                        @endif
-                    </div>
-                    <p class="text-gray-300 text-sm leading-snug whitespace-pre-line">{{ $comment->body }}</p>
-                </div>
+            {{-- Árbol de comentarios --}}
+            @foreach($rootComments as $rootComment)
+                @include('books.partials.comment', [
+                    'comment'          => $rootComment,
+                    'commentsByParent' => $commentsByParent,
+                    'review'           => $review,
+                    'depth'            => 0,
+                ])
             @endforeach
 
-            {{-- Formulario nuevo comentario --}}
+            {{-- Formulario nuevo comentario raíz --}}
             @auth
-                <form action="{{ route('comments.store', $review) }}" method="POST" class="flex gap-2 pt-1">
+                <form action="{{ route('comments.store', $review) }}" method="POST" class="flex gap-2 pt-2 border-t border-gray-800/60">
                     @csrf
                     <input type="text" name="body" required maxlength="1000"
                            placeholder="Comenta este hilo..."

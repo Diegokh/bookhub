@@ -9,6 +9,7 @@ class OpenLibraryService
 {
     private const SEARCH_URL   = 'https://openlibrary.org/search.json';
     private const WORK_URL     = 'https://openlibrary.org/{key}.json';
+    private const SUBJECT_URL  = 'https://openlibrary.org/subjects/{subject}.json';
     private const COVER_URL    = 'https://covers.openlibrary.org/b/id/{id}-L.jpg';
     private const USER_AGENT   = 'BookHub/1.0 (educational; contact: admin@bookhub.com)';
     private const CACHE_TTL    = 3600;
@@ -62,6 +63,44 @@ class OpenLibraryService
                     ? str_replace('{id}', $doc['cover_i'], self::COVER_URL)
                     : null,
             ])->filter(fn($r) => $r['key'] !== null)->values()->all();
+        });
+    }
+
+    /**
+     * Lista de obras populares de un subject (categoría) de Open Library.
+     *
+     * @return array<int, array{key:string, title:string, author:?string, year:?int, cover_url:?string}>
+     */
+    public function getBySubject(string $subject, int $limit = 12): array
+    {
+        $subject = trim(mb_strtolower($subject));
+        if ($subject === '') {
+            return [];
+        }
+
+        $limit    = max(1, min($limit, 50));
+        $cacheKey = 'ol:subject:' . md5($subject) . ":{$limit}";
+
+        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($subject, $limit) {
+            $url = str_replace('{subject}', rawurlencode($subject), self::SUBJECT_URL);
+
+            $response = $this->http()->get($url, ['limit' => $limit]);
+
+            if (! $response->successful()) {
+                return [];
+            }
+
+            $works = $response->json('works') ?? [];
+
+            return collect($works)->map(fn($w) => [
+                'key'       => $w['key'] ?? null,
+                'title'     => $w['title'] ?? null,
+                'author'    => isset($w['authors'][0]['name']) ? $w['authors'][0]['name'] : null,
+                'year'      => $w['first_publish_year'] ?? null,
+                'cover_url' => !empty($w['cover_id'])
+                    ? str_replace('{id}', (string) $w['cover_id'], self::COVER_URL)
+                    : null,
+            ])->filter(fn($r) => !empty($r['title']) && !empty($r['key']))->values()->all();
         });
     }
 

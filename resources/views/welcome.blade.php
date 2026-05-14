@@ -12,9 +12,10 @@
     <nav class="bg-gray-900/80 backdrop-blur-sm border-b border-gray-800 sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
-                <a href="/" class="flex items-center gap-2">
-                    <span class="text-2xl">📚</span>
-                    <span class="text-xl font-bold text-amber-400">BookHub</span>
+                <a href="/" class="flex items-center -my-8 relative z-10" aria-label="BookHub - inicio">
+                    <img src="{{ asset('images/bookhub-logo.png') }}"
+                         alt="BookHub"
+                         class="h-32 w-auto hover:opacity-90 transition-opacity">
                 </a>
                 <div class="flex items-center gap-4">
                     <a href="/books" class="text-gray-300 hover:text-white transition-colors text-sm">Catálogo</a>
@@ -42,7 +43,7 @@
         </div>
 
         <div class="relative z-10 text-center max-w-3xl mx-auto">
-            <div class="text-6xl mb-6">📚</div>
+
             <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight">
                 Tu biblioteca
                 <span class="text-amber-400">digital</span>
